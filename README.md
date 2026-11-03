@@ -84,43 +84,50 @@ Dado que estou na tela "Novo Objeto",
 Quando deixo o campo Nome em branco e clico em "Salvar",
 Então o sistema exibe a mensagem de erro "O nome do objeto é obrigatório." e o registro não é finalizado.
 ---
-HU02 - Registrar Empréstimo
-Como Dono  
-Quero associar um objeto disponível a um amigo especificando a data limite  
-Para ter o controle de para quem o item foi entregue e quando deve voltar.  
-Regras Relacionadas: RN01, RN05, RN06, RN07
-Cenário 01: Registrar empréstimo com prazo padrão
-Dado que tenho o objeto "Jogo Catan" (Categoria: Jogos) com status "Disponível" e o amigo "Carlos Silva" cadastrado,
-Quando crio um empréstimo para "Carlos Silva" no dia 03/11/2026 sem alterar o prazo sugerido,
-Então o sistema define a data de devolução para 03/12/2026 (30 dias), salva o empréstimo como "Ativo" e altera o status do objeto para "Emprestado".
-Cenário 02: Tentativa de emprestar objeto já emprestado
-Dado que o objeto "Livro Clean Code" possui um empréstimo com status "Ativo",
-Quando tento selecionar "Livro Clean Code" para criar um novo empréstimo,
-Então o sistema impede a seleção e exibe a mensagem "Este objeto já está em um empréstimo ativo."
----
-HU03 - Renovar Empréstimo
-Como Dono  
-Quero estender a data limite de devolução de um empréstimo  
-Para conceder mais tempo ao amigo sem marcar o item como atrasado.  
-Regras Relacionadas: RN10, RN11, RN12
-Cenário 01: Renovação válida dentro do limite
-Dado que um empréstimo possui 0 renovações registradas e prazo limite para 10/11/2026,
-Quando clico em "Renovar", informando mais 7 dias no dia 08/11/2026,
-Então a nova data limite é atualizada para 15/11/2026, o contador de renovações sobe para 1 e um registro é adicionado na tabela de Renovações.
-Cenário 02: Limite de renovações atingido
-Dado que um empréstimo já possui 3 renovações cadastradas,
-Quando visualizo os detalhes do empréstimo,
-Então o botão "Renovar" é exibido desabilitado e a mensagem "Limite máximo de 3 renovações atingido" é apresentada.
----
-HU04 - Registrar Devolução
-Como Dono  
-Quero registrar a devolução de um objeto informando seu estado final  
-Para encerrar o empréstimo e atualizar o status do meu objeto.  
-Regras Relacionadas: RN13, RN14
-Cenário 01: Devolução em perfeito estado
-Dado que o empréstimo do objeto "Martelo" está com status "Ativo",
-Quando registro a devolução informando a data atual e seleciono o estado "Sem Alteração",
-Então o status do empréstimo muda para "Encerrado", a data_devolucao é preenchida e o status do objeto "Martelo" volta para "Disponível".
+**HU02 - Registrar Empréstimo Como Dono**
+Quero associar um objeto disponível a um amigo especificando a data limite
+Para ter o controle de para quem o item foi entregue e quando deve voltar.
+
+* **Regras Relacionadas:** RN01, RN05, RN06, RN07
+
+* **Cenário 01: Registrar empréstimo com prazo padrão**
+  * **Dado** que tenho o objeto "Jogo Catan" (Categoria: Jogos) com status "Disponível" e o amigo "Carlos Silva" cadastrado,
+  * **Quando** crio um empréstimo para "Carlos Silva" no dia 03/11/2026 sem alterar o prazo sugerido,
+  * **Então** o sistema define a data de devolução para 03/12/2026 (30 dias), salva o empréstimo como "Ativo" e altera o status do objeto para "Emprestado".
+
+* **Cenário 02: Tentativa de emprestar objeto já emprestado**
+  * **Dado** que o objeto "Livro Clean Code" possui um empréstimo com status "Ativo",
+  * **Quando** tento selecionar "Livro Clean Code" para criar um novo empréstimo,
+  * **Então** o sistema impede a seleção e exibe a mensagem "Este objeto já está em um empréstimo ativo."
+
+
+**HU03 - Renovar Empréstimo Como Dono**
+Quero estender a data limite de devolução de um empréstimo
+Para conceder mais tempo ao amigo sem marcar o item como atrasado.
+
+* **Regras Relacionadas:** RN10, RN11, RN12
+
+* **Cenário 01: Renovação válida dentro do limite**
+  * **Dado** que um empréstimo possui 0 renovações registradas e prazo limite para 10/11/2026,
+  * **Quando** clico em "Renovar", informando mais 7 dias no dia 08/11/2026,
+  * **Então** a nova data limite é atualizada para 15/11/2026, o contador de renovações sobe para 1 e um registro é adicionado na tabela de Renovações.
+
+* **Cenário 02: Limite de renovações atingido**
+  * **Dado** que um empréstimo já possui 3 renovações cadastradas,
+  * **Quando** visualizo os detalhes do empréstimo,
+  * **Então** o botão "Renovar" é exibido desabilitado e a mensagem "Limite máximo de 3 renovações atingido" é apresentada.
+
+
+**HU04 - Registrar Devolução Como Dono**
+Quero registrar a devolução de um objeto informando seu estado final
+Para encerrar o empréstimo e atualizar o status do meu objeto.
+
+* **Regras Relacionadas:** RN13, RN14
+
+* **Cenário 01: Devolução em perfeito estado**
+  * **Dado** que o empréstimo do objeto "Martelo" está com status "Ativo",
+  * **Quando** registro a devolução informando a data atual e seleciono o estado "Sem Alteração",
+  * **Então** o status do empréstimo muda para "Encerrado", a data_devolucao é preenchida e o status do objeto "Martelo" volta para "Disponível".
 ---
 7. Estados do empréstimo
 Estado Atual	Evento	Próximo Estado	Regra / Condição
