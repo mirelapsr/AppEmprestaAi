@@ -1,6 +1,6 @@
 # Empresta Aí
 Especificação v1  
-Aluno: [Seu Nome] | Data: 03/11/2026
+Mirela | Data: 03/11/2026
 
 ---
 
