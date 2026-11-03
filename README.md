@@ -258,6 +258,4 @@ Histórico de prorrogações dos empréstimos.
 
 ---
 
-## 12. Questões em aberto
 
-* *Nenhuma questão em aberto nesta versão.* Todas as definições de prazos, atrasos, danos, perdas e estrutura do modelo de dados foram consolidadas.
