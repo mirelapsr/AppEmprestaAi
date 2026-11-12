@@ -1,0 +1,737 @@
+<!--
+Empresta Aí, protótipo
+Aluno: Mirela Rodrigues
+Spec usada: README.md do projeto
+Ferramenta de IA: Claude (VS Code)
+
+LACUNAS ENCONTRADAS
+- Seções 2 e 6, navegação e composição das telas: não há fluxo visual especificado; decisão: usar uma página única com abas para empréstimos, acervo, contatos e histórico.
+- RN09, canal de entrega de lembretes: não há serviço de notificações no escopo de um HTML local; decisão: exibir lembretes e próximos eventos dentro da interface, sem notificações do sistema.
+- HU01, foto opcional: não há requisito de armazenamento/formato; decisão: aceitar uma URL opcional de imagem, sem upload.
+- HU04/RN15, data da devolução parcial: não foi definido um campo de data próprio; decisão: registrar o ajuste com a data simulada corrente.
+- RN09, horários dos lembretes: a simulação controla dias e não horas; decisão: exibir a hora prevista de cada lembrete, mas torná-lo visível durante todo o dia simulado.
+- RN16, data da declaração da perda: o modelo de empréstimo não define um campo para esse evento; decisão: guardar a data simulada em lostDate para ordenar e exibir o histórico sem alterar o empréstimo finalizado.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#FFF7E6">
+  <title>Empresta Aí — Acervo pessoal</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #FFF7E6;
+      --paper-deep: #f3ead6;
+      --ink: #4A2C2A;
+      --rose: #8A444D;
+      --rose-dark: #5C2E35;
+      --blush: #F7C8D3;
+      --line: #d6c6a9;
+      --muted: #685653;
+      --white: #fffdf8;
+      --success: #315a45;
+      --shadow: 0 12px 30px rgba(74, 44, 42, .08);
+      font-family: "Trebuchet MS", Arial, sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; background: var(--paper); color: var(--ink); }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible {
+      outline: 3px solid var(--rose); outline-offset: 2px;
+    }
+    .shell { max-width: 1240px; margin: auto; padding: 24px clamp(14px, 3vw, 36px) 48px; }
+    .topline { display:flex; align-items:center; justify-content:space-between; gap:18px; border-bottom:1px solid var(--line); padding-bottom:16px; }
+    .brand { display:flex; gap:13px; align-items:center; }
+    .brand-mark { width:46px; height:46px; border:2px solid var(--rose); border-radius:50%; display:grid; place-items:center; color:var(--rose); font-family:Georgia,serif; font-size:22px; }
+    h1,h2,h3,.serif { font-family: Georgia, "Times New Roman", serif; }
+    h1 { font-size:clamp(25px,4vw,36px); margin:0; letter-spacing:-.7px; }
+    .subtitle { color:var(--muted); font-size:13px; margin-top:3px; }
+    .date-control { display:flex; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+    .date-label { font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; }
+    .date-chip { border:1px solid var(--rose); background:var(--white); border-radius:999px; padding:8px 12px; font-weight:700; min-width:130px; text-align:center; }
+    .button { border:1px solid var(--rose); background:var(--rose); color:var(--paper); border-radius:8px; padding:10px 14px; font-weight:700; transition:transform .12s, background .12s; }
+    .button:hover { background:#713740; transform:translateY(-1px); }
+    .button.secondary { background:var(--blush); color:var(--ink); }
+    .button.secondary:hover { background:#efb9c6; }
+    .button.ghost { color:var(--rose); background:transparent; }
+    .button.ghost:hover { background:var(--paper-deep); }
+    .button.danger { background:var(--rose-dark); border-color:var(--rose-dark); }
+    .button.small { padding:7px 10px; font-size:12px; }
+    .button:disabled { opacity:.55; cursor:not-allowed; transform:none; }
+    .date-control .button { padding:8px 11px; font-size:12px; }
+    .notice { margin:18px 0; padding:12px 15px; border:1px solid var(--rose); border-radius:10px; background:#fff0f2; display:flex; gap:10px; align-items:flex-start; line-height:1.45; }
+    .notice[hidden] { display:none; }
+    .notice strong { color:var(--rose-dark); }
+    .nav { display:flex; gap:7px; padding:17px 0 20px; overflow-x:auto; }
+    .nav button { white-space:nowrap; border:0; border-radius:999px; color:var(--ink); background:transparent; padding:10px 15px; font-weight:700; }
+    .nav button[aria-selected="true"] { background:var(--rose); color:var(--paper); }
+    .section-head { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; margin:6px 0 18px; }
+    .section-head h2 { margin:0; font-size:27px; }
+    .section-head p { margin:5px 0 0; color:var(--muted); font-size:14px; }
+    .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:21px; }
+    .stat { border:1px solid var(--line); border-radius:12px; padding:15px 16px; background:var(--white); box-shadow:var(--shadow); }
+    .stat span { display:block; font-size:12px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+    .stat strong { display:block; font: bold 27px Georgia,serif; margin-top:6px; }
+    .stat small { color:var(--muted); }
+    .tools { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px; }
+    .tools input[type="search"], .tools select { min-height:42px; }
+    input, select, textarea { color:var(--ink); background:var(--white); border:1px solid #9a8175; border-radius:7px; padding:10px 11px; width:100%; }
+    input::placeholder, textarea::placeholder { color:#6d5b57; opacity:1; }
+    .tools .search { flex:1 1 220px; }
+    .tools select { width:auto; min-width:160px; }
+    .paper-card { position:relative; background:var(--white); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); }
+    .paper-card:before { content:""; position:absolute; top:-7px; left:24px; width:36px; height:13px; border:1px solid #7d756b; border-radius:4px 4px 2px 2px; background:linear-gradient(90deg,#d9d4c8,#fff,#b8b2a7); transform:rotate(-4deg); }
+    .loan-list { display:grid; gap:12px; }
+    .loan-card { padding:17px 18px 15px; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px 18px; }
+    .loan-title { margin:0; font: bold 20px Georgia,serif; }
+    .loan-meta { display:flex; flex-wrap:wrap; gap:8px 17px; color:var(--muted); font-size:13px; margin-top:9px; }
+    .loan-meta b { color:var(--ink); }
+    .loan-card .status { align-self:start; justify-self:end; }
+    .loan-card .actions { grid-column:1 / -1; display:flex; gap:7px; flex-wrap:wrap; border-top:1px dashed var(--line); padding-top:12px; }
+    .status { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--rose); border-radius:999px; padding:6px 10px; font-size:12px; font-weight:800; white-space:nowrap; }
+    .status.active { background:var(--blush); color:var(--ink); }
+    .status.late { background:var(--rose); color:var(--paper); }
+    .status.closed { background:var(--paper); color:var(--ink); border-color:var(--ink); }
+    .status.lost { background:var(--rose-dark); color:var(--paper); border-color:var(--rose-dark); }
+    .status.available { background:#e8f0e9; color:#244634; border-color:#315a45; }
+    .status.loaned { background:#eee8db; color:var(--ink); border-color:#75645c; }
+    .status.archived { background:#ece8e1; color:var(--ink); border-color:#75645c; }
+    .status.info { background:var(--paper); color:var(--ink); }
+    .callout { font-size:13px; margin-top:10px; color:var(--rose-dark); font-weight:700; }
+    .empty { border:1px dashed #9a8175; border-radius:12px; padding:30px 18px; text-align:center; color:var(--muted); background:rgba(255,253,248,.65); }
+    .empty strong { color:var(--ink); display:block; font: bold 19px Georgia,serif; margin-bottom:5px; }
+    .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+    .entity-card { padding:18px; overflow:hidden; }
+    .entity-card h3 { margin:0 0 7px; font-size:20px; }
+    .entity-card p { color:var(--muted); margin:4px 0; font-size:13px; overflow-wrap:anywhere; }
+    .entity-card .entity-actions { display:flex; flex-wrap:wrap; gap:7px; margin-top:14px; }
+    .entity-photo { width:100%; height:130px; object-fit:cover; border-radius:8px; margin:0 0 12px; border:1px solid var(--line); }
+    .filters-label { font-weight:700; font-size:13px; }
+    .reminders { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:8px 0 22px; }
+    .reminder-box { padding:17px; }
+    .reminder-box h3 { margin:0 0 10px; font-size:19px; }
+    .reminder-row { display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-top:1px dashed var(--line); font-size:13px; }
+    .reminder-row:first-of-type { border-top:0; }
+    .reminder-row strong { display:block; }
+    .reminder-row small { color:var(--muted); }
+    .history-controls { display:grid; grid-template-columns:180px minmax(200px,1fr); gap:10px; max-width:650px; margin-bottom:17px; }
+    .history-list { display:grid; gap:10px; }
+    .history-item { padding:14px 16px; border-left:4px solid var(--rose); }
+    .history-item h3 { margin:0 0 5px; font-size:17px; }
+    .history-item p { margin:4px 0; color:var(--muted); font-size:13px; }
+    .field { display:grid; gap:6px; margin-bottom:13px; }
+    .field label { font-size:13px; font-weight:800; }
+    .field small { color:var(--muted); font-size:12px; }
+    .field-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .checkbox-line { display:flex; align-items:flex-start; gap:9px; font-size:13px; margin:10px 0 14px; }
+    .checkbox-line input { width:auto; margin:2px 0 0; }
+    .modal-backdrop { position:fixed; inset:0; display:grid; place-items:center; padding:15px; background:rgba(35,24,22,.55); z-index:5; }
+    .modal-backdrop[hidden] { display:none; }
+    .modal { width:min(580px,100%); max-height:min(90vh,850px); overflow:auto; background:var(--paper); border:1px solid var(--rose); border-radius:14px; padding:21px; box-shadow:0 20px 70px rgba(0,0,0,.25); }
+    .modal-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom:16px; }
+    .modal-head h2 { margin:0; font-size:24px; }
+    .close { border:0; background:transparent; color:var(--ink); font-size:24px; line-height:1; padding:2px 7px; }
+    .modal-actions { display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; margin-top:18px; }
+    .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); max-width:min(620px,calc(100% - 24px)); background:var(--ink); color:var(--paper); border-radius:9px; padding:12px 16px; box-shadow:var(--shadow); z-index:10; }
+    .toast[hidden] { display:none; }
+    .toast.error { background:var(--rose-dark); }
+    .toggle { display:flex; gap:10px; align-items:center; margin:8px 0 15px; font-size:13px; }
+    .toggle input { width:auto; }
+    .footer { margin-top:28px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+    [hidden] { display:none !important; }
+    @media (max-width:760px) {
+      .topline { align-items:flex-start; flex-direction:column; }
+      .date-control { justify-content:flex-start; }
+      .stats { grid-template-columns:repeat(2,1fr); }
+      .grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .loan-card { grid-template-columns:1fr; }
+      .loan-card .status { justify-self:start; grid-row:1; }
+      .loan-card .loan-main { grid-row:2; }
+      .reminders { grid-template-columns:1fr; }
+    }
+    @media (max-width:480px) {
+      .shell { padding:16px 13px 34px; }
+      .date-control { width:100%; }
+      .date-control .date-chip { order:-1; }
+      .date-label { width:100%; }
+      .grid { grid-template-columns:1fr; }
+      .section-head { align-items:flex-start; flex-direction:column; }
+      .section-head .button { width:100%; }
+      .history-controls, .field-row { grid-template-columns:1fr; }
+      .tools select { flex:1 1 100%; width:100%; }
+      .loan-card .actions .button { flex:1 1 auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topline">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">EA</div>
+        <div>
+          <h1>Empresta Aí</h1>
+          <div class="subtitle">Seu acervo, cuidado com carinho e boas anotações.</div>
+        </div>
+      </div>
+      <!-- RN06/RN08: relógio de referência simulado em dias, independente do fuso local. -->
+      <div class="date-control" aria-label="Controle da data simulada">
+        <span class="date-label">Data simulada</span>
+        <span class="date-chip" id="sim-date" aria-live="polite"></span>
+        <button class="button ghost" type="button" data-date-step="1">+1 dia</button>
+        <button class="button ghost" type="button" data-date-step="7">+7 dias</button>
+        <button class="button ghost" type="button" id="date-today">Voltar para hoje</button>
+      </div>
+    </header>
+
+    <div class="notice" id="reminder-off" hidden role="status">
+      <span aria-hidden="true">ℹ</span><div><strong>Lembretes desativados.</strong> Reative os lembretes para receber avisos. Os indicadores de prazo continuam visíveis na listagem.</div>
+    </div>
+    <div class="notice" id="reminder-notice" hidden role="status"></div>
+    <nav class="nav" role="tablist" aria-label="Seções do Empresta Aí">
+      <button role="tab" aria-selected="true" aria-controls="panel-loans" data-tab="loans">Empréstimos</button>
+      <button role="tab" aria-selected="false" aria-controls="panel-objects" data-tab="objects">Meu acervo</button>
+      <button role="tab" aria-selected="false" aria-controls="panel-friends" data-tab="friends">Contatos</button>
+      <button role="tab" aria-selected="false" aria-controls="panel-history" data-tab="history">Histórico</button>
+      <button role="tab" aria-selected="false" aria-controls="panel-reminders" data-tab="reminders">Lembretes</button>
+    </nav>
+
+    <section id="panel-loans" role="tabpanel">
+      <div class="section-head">
+        <div><h2>Empréstimos</h2><p>Acompanhe o que saiu, o que volta e o que já retornou.</p></div>
+        <button class="button" type="button" id="new-loan">＋ Registrar empréstimo</button>
+      </div>
+      <div class="stats" id="stats"></div>
+      <div class="tools">
+        <input class="search" type="search" id="loan-search" placeholder="Buscar por objeto ou contato..." aria-label="Buscar por objeto ou contato">
+        <select id="loan-filter" aria-label="Filtrar empréstimos por situação">
+          <option value="Todos">Todas as situações</option><option value="Ativo">Ativos</option><option value="Atrasado">Atrasados</option><option value="Encerrado">Encerrados</option><option value="Perdido">Perdidos</option>
+        </select>
+      </div>
+      <div class="loan-list" id="loan-list"></div>
+    </section>
+
+    <section id="panel-objects" role="tabpanel" hidden>
+      <div class="section-head">
+        <div><h2>Meu acervo</h2><p>Objetos e conjuntos são cadastrados como unidades únicas.</p></div>
+        <button class="button" type="button" id="new-object">＋ Cadastrar objeto</button>
+      </div>
+      <div class="tools"><input class="search" type="search" id="object-search" placeholder="Buscar no acervo..." aria-label="Buscar objeto"></div>
+      <div class="grid" id="object-list"></div>
+    </section>
+
+    <section id="panel-friends" role="tabpanel" hidden>
+      <div class="section-head">
+        <div><h2>Contatos</h2><p>Seus amigos e tomadores, sem contas ou mensagens dentro do protótipo.</p></div>
+        <button class="button" type="button" id="new-friend">＋ Cadastrar contato</button>
+      </div>
+      <div class="tools"><input class="search" type="search" id="friend-search" placeholder="Buscar contatos..." aria-label="Buscar contato"></div>
+      <div class="grid" id="friend-list"></div>
+    </section>
+
+    <section id="panel-history" role="tabpanel" hidden>
+      <div class="section-head"><div><h2>Histórico de movimentações</h2><p>Consulte empréstimos, renovações, danos, devoluções parciais e recuperações.</p></div></div>
+      <div class="history-controls">
+        <select id="history-type" aria-label="Tipo de histórico"><option value="object">Por objeto</option><option value="friend">Por contato</option></select>
+        <select id="history-entity" aria-label="Escolha objeto ou contato"></select>
+      </div>
+      <div id="history-content"></div>
+    </section>
+
+    <section id="panel-reminders" role="tabpanel" hidden>
+      <div class="section-head"><div><h2>Lembretes de prazo</h2><p>Prevenção, vencimento e alertas de atraso segundo as regras do projeto.</p></div></div>
+      <label class="toggle"><input id="reminders-enabled" type="checkbox"> Receber lembretes nesta interface</label>
+      <div id="reminders-content"></div>
+    </section>
+
+    <footer class="footer"><span>Empresta Aí · protótipo local</span><span>Os dados ficam salvos neste navegador.</span></footer>
+  </main>
+
+  <div class="modal-backdrop" id="modal-backdrop" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-head"><h2 id="modal-title"></h2><button class="close" type="button" id="modal-close" aria-label="Fechar">×</button></div>
+      <div id="modal-body"></div>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script>
+    "use strict";
+    const STORAGE_KEY = "empresta-ai-mirela-v1";
+    const CATEGORIES = ["Ferramentas", "Livros", "Eletrônicos", "Jogos", "Outros"];
+    const CONDITIONS = ["Novo", "Bom", "Desgastado", "Danificado", "Inutilizado"];
+    const RETURN_STATES = ["Sem Alteração", "Dano Leve", "Dano Grave", "Inutilizado"];
+    const DEFAULT_DAYS = { Ferramentas: 7, Eletrônicos: 14, Livros: 30, Jogos: 30, Outros: 15 };
+    const $ = (selector, root = document) => root.querySelector(selector);
+    const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+
+    // RN06/RN08: usar datas de calendário (sem horário) para evitar alterações por fuso/DST.
+    function isoDate(date) {
+      const d = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    }
+    function fromISO(value) { const [y,m,d] = value.split("-").map(Number); return new Date(y, m-1, d, 12); }
+    function addDays(value, days) { const d = fromISO(value); d.setDate(d.getDate() + Number(days)); return isoDate(d); }
+    function dayDiff(later, earlier) { return Math.round((Date.parse(`${later}T12:00:00Z`) - Date.parse(`${earlier}T12:00:00Z`)) / 86400000); }
+    function fmt(value) { return value ? fromISO(value).toLocaleDateString("pt-BR") : "—"; }
+    function todayISO() { return isoDate(new Date()); }
+    function escapeHTML(value) {
+      return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+    }
+    function makeSeed() {
+      const today = todayISO();
+      const daysAgo = n => addDays(today, -n);
+      const daysAhead = n => addDays(today, n);
+      const objects = [
+        { id: 1, name: "Furadeira de Impacto 500W", category: "Ferramentas", condition: "Bom", status: "Emprestado", isSet: false, photo: "", lastLightDamage: false },
+        { id: 2, name: "Livro Clean Code", category: "Livros", condition: "Bom", status: "Emprestado", isSet: false, photo: "", lastLightDamage: false },
+        { id: 3, name: "Coleção Harry Potter 7 Livros", category: "Livros", condition: "Bom", status: "Emprestado", isSet: true, photo: "", lastLightDamage: false },
+        { id: 4, name: "Jogo Catan", category: "Jogos", condition: "Novo", status: "Disponível", isSet: false, photo: "", lastLightDamage: false },
+        { id: 5, name: "Notebook Velho", category: "Eletrônicos", condition: "Danificado", status: "Disponível", isSet: false, photo: "", lastLightDamage: false },
+        { id: 6, name: "Martelo", category: "Ferramentas", condition: "Desgastado", status: "Perdido", isSet: false, photo: "", lastLightDamage: false },
+        { id: 7, name: "Serra Tico-Tico", category: "Ferramentas", condition: "Inutilizado", status: "Disponível", isSet: false, photo: "", lastLightDamage: false },
+        { id: 8, name: "Jogo de Xadrez", category: "Jogos", condition: "Bom", status: "Disponível", isSet: false, photo: "", lastLightDamage: true }
+      ];
+      const friends = [
+        { id: 1, name: "Carlos Silva", phone: "(11) 91234-5678", email: "carlos@email.com", archived: false },
+        { id: 2, name: "Ana Souza", phone: "(11) 99876-5432", email: "", archived: false },
+        { id: 3, name: "João Pereira", phone: "(21) 98888-1212", email: "joao@email.com", archived: false },
+        { id: 4, name: "Contato arquivado", phone: "(11) 90000-0000", email: "", archived: true }
+      ];
+      const loans = [
+        { id: 1, objectId: 1, friendId: 1, start: daysAgo(5), due: daysAhead(2), status: "Ativo", returnDate: "", returnState: "", renewals: [], adjustments: [] },
+        { id: 2, objectId: 2, friendId: 2, start: daysAgo(18), due: daysAgo(3), status: "Ativo", returnDate: "", returnState: "", renewals: [], adjustments: [] },
+        { id: 3, objectId: 3, friendId: 3, start: daysAgo(46), due: daysAgo(36), status: "Ativo", returnDate: "", returnState: "", renewals: [], adjustments: [{ id: 1, type: "Devolução Parcial", description: "Livros 6 e 7", date: daysAgo(4) }] },
+        { id: 4, objectId: 4, friendId: 1, start: daysAgo(80), due: daysAgo(50), status: "Encerrado", returnDate: daysAgo(49), returnState: "Sem Alteração", renewals: [], adjustments: [] },
+        { id: 5, objectId: 5, friendId: 3, start: daysAgo(100), due: daysAgo(80), status: "Encerrado", returnDate: daysAgo(79), returnState: "Dano Grave", renewals: [], adjustments: [] },
+        { id: 6, objectId: 6, friendId: 2, start: daysAgo(75), due: daysAgo(60), status: "Perdido", lostDate: daysAgo(55), returnDate: "", returnState: "", renewals: [], adjustments: [] },
+        { id: 7, objectId: 8, friendId: 1, start: daysAgo(120), due: daysAgo(90), status: "Encerrado", returnDate: daysAgo(91), returnState: "Dano Leve", renewals: [], adjustments: [] }
+      ];
+      return { simulatedDate: today, objects, friends, loans, remindersEnabled: true, nextId: { object: 9, friend: 5, loan: 8, adjustment: 2, renewal: 1 } };
+    }
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) return makeSeed();
+        const parsed = JSON.parse(saved);
+        if (!parsed || !Array.isArray(parsed.objects) || !Array.isArray(parsed.friends) || !Array.isArray(parsed.loans)) throw new Error("Dados locais inválidos.");
+        return parsed;
+      } catch (error) {
+        console.error("Não foi possível carregar os dados locais do Empresta Aí.", error);
+        return makeSeed();
+      }
+    }
+    let state = loadState();
+    function save() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+      catch (error) { console.error("Não foi possível salvar os dados no navegador.", error); toast("Não foi possível salvar os dados neste navegador.", true); }
+    }
+    function objectById(id) { return state.objects.find(item => item.id === Number(id)); }
+    function friendById(id) { return state.friends.find(item => item.id === Number(id)); }
+    function loanById(id) { return state.loans.find(item => item.id === Number(id)); }
+    function friendName(id) { const f = friendById(id); return !f || !f.name ? "Contato Removido" : f.name; }
+    function getStatus(loan) {
+      if (loan.status === "Encerrado" || loan.status === "Perdido") return loan.status;
+      return state.simulatedDate > loan.due ? "Atrasado" : "Ativo";
+    }
+    function openLoans() { return state.loans.filter(l => ["Ativo", "Atrasado"].includes(getStatus(l))); }
+    function statusBadge(status, loan) {
+      if (status === "Atrasado") {
+        const days = dayDiff(state.simulatedDate, loan.due);
+        return `<span class="status late"><span aria-hidden="true">⚠</span> Atrasado há ${days} ${days === 1 ? "dia" : "dias"}</span>`;
+      }
+      if (status === "Ativo") return `<span class="status active"><span aria-hidden="true">◷</span> Ativo · vence em ${fmt(loan.due)}</span>`;
+      if (status === "Encerrado") return `<span class="status closed"><span aria-hidden="true">✓</span> Encerrado</span>`;
+      return `<span class="status lost"><span aria-hidden="true">⊗</span> Perdido</span>`;
+    }
+    function toast(message, error = false) {
+      const el = $("#toast"); el.textContent = message; el.classList.toggle("error", error); el.hidden = false;
+      clearTimeout(toast.timer); toast.timer = setTimeout(() => { el.hidden = true; }, 4200);
+    }
+    function showModal(title, html, onSubmit) {
+      $("#modal-title").textContent = title;
+      $("#modal-body").innerHTML = html;
+      $("#modal-backdrop").hidden = false;
+      $("#modal-close").focus();
+      const form = $("#modal-body form");
+      if (form && onSubmit) form.addEventListener("submit", event => { event.preventDefault(); onSubmit(new FormData(form), form); });
+    }
+    function closeModal() { $("#modal-backdrop").hidden = true; $("#modal-body").innerHTML = ""; }
+    function modalButtons(cancel = "Cancelar", confirm = "Salvar") {
+      return `<div class="modal-actions"><button class="button ghost" type="button" data-close-modal>${cancel}</button><button class="button" type="submit">${confirm}</button></div>`;
+    }
+
+    // HU07: busca e filtros de empréstimos; Atrasados em ordem do vencimento mais antigo.
+    function renderLoans() {
+      const query = $("#loan-search").value.trim().toLocaleLowerCase("pt-BR");
+      const filter = $("#loan-filter").value;
+      const all = state.loans.map(loan => ({ loan, status: getStatus(loan), object: objectById(loan.objectId) }))
+        .filter(row => row.object)
+        .filter(row => filter === "Todos" || row.status === filter)
+        .filter(row => `${row.object.name} ${friendName(row.loan.friendId)}`.toLocaleLowerCase("pt-BR").includes(query))
+        .sort((a,b) => filter === "Atrasado" ? a.loan.due.localeCompare(b.loan.due) : b.loan.start.localeCompare(a.loan.start));
+      $("#stats").innerHTML = [
+        ["Em andamento", state.loans.filter(l => getStatus(l) === "Ativo").length, "prazos vigentes"],
+        ["Atrasados", state.loans.filter(l => getStatus(l) === "Atrasado").length, "precisam de atenção"],
+        ["Encerrados", state.loans.filter(l => getStatus(l) === "Encerrado").length, "devoluções registradas"],
+        ["Perdidos", state.loans.filter(l => getStatus(l) === "Perdido").length, "no histórico"]
+      ].map(([label,count,sub]) => `<div class="stat"><span>${label}</span><strong>${count}</strong><small>${sub}</small></div>`).join("");
+      $("#loan-list").innerHTML = all.length ? all.map(({loan,status,object}) => {
+        const overdue = status === "Atrasado" ? dayDiff(state.simulatedDate, loan.due) : 0;
+        const suggestion = overdue > 30 ? `<div class="callout">⚠ Atraso superior a 30 dias · Sugestão: Declarar como Perdido</div>` : "";
+        const light = object.lastLightDamage && object.status === "Disponível" ? `<div class="callout">ⓘ Dano Leve registrado na última devolução</div>` : "";
+        return `<article class="paper-card loan-card">
+          <div class="loan-main"><h3 class="loan-title">${escapeHTML(object.name)}</h3>
+          <div class="loan-meta"><span>Com <b>${escapeHTML(friendName(loan.friendId))}</b></span><span>Saída <b>${fmt(loan.start)}</b></span><span>Devolução prevista <b>${fmt(loan.due)}</b></span>${loan.returnDate ? `<span>Devolvido <b>${fmt(loan.returnDate)}</b></span>` : ""}</div>
+          ${loan.renewals.length ? `<div class="loan-meta"><span>Renovações: <b>${loan.renewals.length}/3</b></span></div>` : ""}
+          ${suggestion}${light}</div>
+          ${statusBadge(status,loan)}
+          <div class="actions">
+            <button class="button ghost small" data-action="loan-history" data-id="${loan.id}">Ver histórico</button>
+            ${["Ativo","Atrasado"].includes(status) ? `<button class="button secondary small" data-action="renew" data-id="${loan.id}" ${loan.renewals.length >= 3 ? "disabled" : ""}>Renovar</button><button class="button secondary small" data-action="return" data-id="${loan.id}">Registrar devolução</button><button class="button danger small" data-action="lost" data-id="${loan.id}">Declarar como Perdido</button>` : ""}
+          </div>
+        </article>`;
+      }).join("") : `<div class="empty"><strong>Nenhum empréstimo encontrado para este filtro.</strong>Experimente alterar o filtro ou a busca.</div>`;
+      updateReminderNotice();
+    }
+
+    // HU01/RN01/RN03/RN14: inventário e elegibilidade de objetos.
+    function renderObjects() {
+      const query = $("#object-search").value.trim().toLocaleLowerCase("pt-BR");
+      const list = state.objects.filter(o => o.name.toLocaleLowerCase("pt-BR").includes(query));
+      $("#object-list").innerHTML = list.length ? list.map(o => {
+        const statusClass = ({ Disponível:"available", Emprestado:"loaned", Perdido:"lost", Arquivado:"archived" })[o.status] || "info";
+        const label = o.status === "Perdido" ? "⊗ Perdido" : o.status === "Emprestado" ? "↗ Emprestado" : o.status === "Arquivado" ? "▣ Arquivado" : "✓ Disponível";
+        const activeLoan = state.loans.find(l => l.objectId === o.id && ["Ativo","Atrasado"].includes(getStatus(l)));
+        return `<article class="paper-card entity-card">
+          ${o.photo ? `<img class="entity-photo" src="${escapeHTML(o.photo)}" alt="Foto de ${escapeHTML(o.name)}" onerror="this.hidden=true">` : ""}
+          <span class="status ${statusClass}">${label}</span><h3>${escapeHTML(o.name)}</h3>
+          <p>${escapeHTML(o.category)}${o.isSet ? " · Conjunto (unidade única)" : ""}</p><p>Conservação: <b>${escapeHTML(o.condition)}</b></p>
+          ${o.lastLightDamage ? `<p class="callout">ⓘ Dano Leve registrado na última devolução</p>` : ""}
+          ${activeLoan ? `<p>Em empréstimo com ${escapeHTML(friendName(activeLoan.friendId))}</p>` : ""}
+          <div class="entity-actions"><button class="button ghost small" data-action="object-history" data-id="${o.id}">Histórico</button>
+          <button class="button ghost small" data-action="edit-object" data-id="${o.id}">Editar</button>
+          <button class="button ghost small" data-action="archive-object" data-id="${o.id}">${o.status === "Arquivado" ? "Desarquivar" : "Arquivar / remover"}</button>
+          ${o.status === "Perdido" ? `<button class="button secondary small" data-action="recover" data-id="${o.id}">Registrar recuperação</button>` : ""}</div>
+        </article>`;
+      }).join("") : `<div class="empty"><strong>Seu acervo está vazio.</strong>Cadastre um objeto para começar.</div>`;
+    }
+
+    // HU05/RN03/RN04: contatos arquivados permanecem consultáveis; anonimização preserva empréstimos.
+    function renderFriends() {
+      const query = $("#friend-search").value.trim().toLocaleLowerCase("pt-BR");
+      const list = state.friends.filter(f => `${f.name} ${f.phone}`.toLocaleLowerCase("pt-BR").includes(query));
+      $("#friend-list").innerHTML = list.length ? list.map(f => {
+        const count = state.loans.filter(l => l.friendId === f.id).length;
+        const active = state.loans.some(l => l.friendId === f.id && ["Ativo","Atrasado"].includes(getStatus(l)));
+        return `<article class="paper-card entity-card">
+          <span class="status ${f.archived ? "archived" : "available"}">${f.archived ? "▣ Arquivado" : "✓ Ativo"}</span>
+          <h3>${escapeHTML(f.name || "Contato Removido")}</h3>
+          <p>Telefone: ${escapeHTML(f.phone || "—")}</p>${f.email ? `<p>E-mail: ${escapeHTML(f.email)}</p>` : ""}
+          <p>${count} ${count === 1 ? "empréstimo no histórico" : "empréstimos no histórico"}${active ? " · empréstimo em andamento" : ""}</p>
+          <div class="entity-actions"><button class="button ghost small" data-action="friend-history" data-id="${f.id}">Histórico</button>
+          ${f.name ? `<button class="button ghost small" data-action="archive-friend" data-id="${f.id}">${f.archived ? "Desarquivar" : "Arquivar / remover"}</button><button class="button ghost small" data-action="anonymize" data-id="${f.id}">Remover dados (LGPD)</button>` : ""}</div>
+        </article>`;
+      }).join("") : `<div class="empty"><strong>Nenhum contato encontrado.</strong>Cadastre um contato para associá-lo aos empréstimos.</div>`;
+    }
+
+    // HU09: o mesmo histórico reúne empréstimos e ajustes, do mais recente para o mais antigo.
+    function historyHTML(type, id) {
+      const related = state.loans.filter(l => type === "object" ? l.objectId === Number(id) : l.friendId === Number(id));
+      const adjustments = [];
+      related.forEach(loan => {
+        const o = objectById(loan.objectId);
+        adjustments.push({ date: loan.start, title: "Empréstimo registrado", detail: `${o?.name || "Objeto removido"} · saída ${fmt(loan.start)} · prazo ${fmt(loan.due)} · situação ${getStatus(loan)}` });
+        loan.renewals.forEach(r => adjustments.push({ date: r.date, title: "Renovação", detail: `${r.days} dia(s) adicionados · novo prazo ${fmt(r.due)}` }));
+        loan.adjustments.forEach(a => adjustments.push({ date: a.date, title: a.type, detail: a.description || (a.condition ? `Estado atual: ${a.condition}` : "") }));
+        if (loan.returnDate) adjustments.push({ date: loan.returnDate, title: "Devolução total", detail: `Devolvido em ${fmt(loan.returnDate)} · estado: ${loan.returnState}${loan.returnState === "Dano Leve" ? " · Dano Leve registrado na última devolução" : ""}` });
+        if (loan.status === "Perdido") adjustments.push({ date: loan.lostDate || loan.due, title: "Empréstimo declarado Perdido", detail: `Objeto: ${o?.name || "—"}` });
+      });
+      adjustments.sort((a,b) => b.date.localeCompare(a.date));
+      return adjustments.length ? `<div class="history-list">${adjustments.map(item => `<article class="paper-card history-item"><h3>${escapeHTML(item.title)}</h3><p>${escapeHTML(item.detail)}</p><p>${fmt(item.date)}</p></article>`).join("")}</div>` : `<div class="empty"><strong>Nenhuma movimentação registrada.</strong>Este cadastro ainda não possui empréstimos.</div>`;
+    }
+    function historyOptions() {
+      const type = $("#history-type").value;
+      const entities = type === "object" ? state.objects : state.friends;
+      const current = $("#history-entity").value;
+      $("#history-entity").innerHTML = entities.map(e => `<option value="${e.id}">${escapeHTML(type === "object" ? e.name : e.name || "Contato Removido")}</option>`).join("");
+      if (entities.some(e => String(e.id) === current)) $("#history-entity").value = current;
+      renderHistory();
+    }
+    function renderHistory() {
+      const id = $("#history-entity").value;
+      $("#history-content").innerHTML = id ? historyHTML($("#history-type").value, id) : `<div class="empty"><strong>Nenhuma movimentação registrada.</strong></div>`;
+    }
+    function switchHistory(type, id) {
+      $("#history-type").value = type;
+      historyOptions();
+      if (id != null) $("#history-entity").value = String(id);
+      renderHistory();
+      activateTab("history");
+    }
+
+    // RN09/HU08: os lembretes são calculados para a data simulada e não alteram situação.
+    function remindersForDate(date) {
+      const rows = [];
+      state.loans.forEach(loan => {
+        if (!["Ativo","Atrasado"].includes(getStatus(loan))) return;
+        const object = objectById(loan.objectId);
+        const friend = friendName(loan.friendId);
+        if (addDays(loan.due, -1) === date) rows.push({ time:"09:00", title:"Lembrete de Prevenção", loan, object, friend });
+        if (loan.due === date) rows.push({ time:"09:00", title:"Lembrete de Vencimento", loan, object, friend });
+        const lateDays = dayDiff(date, loan.due);
+        if (lateDays >= 1 && lateDays <= 7) rows.push({ time:"10:00", title:`Lembrete de Atraso · dia ${lateDays}`, loan, object, friend });
+      });
+      return rows.sort((a,b) => a.time.localeCompare(b.time));
+    }
+    function renderReminders() {
+      $("#reminders-enabled").checked = state.remindersEnabled !== false;
+      const todayRows = remindersForDate(state.simulatedDate);
+      const upcoming = [];
+      for (let i=1;i<=7;i++) remindersForDate(addDays(state.simulatedDate,i)).forEach(row => upcoming.push({ ...row, date: addDays(state.simulatedDate,i) }));
+      const renderRows = rows => rows.length ? rows.map(row => `<div class="reminder-row"><div><strong>${escapeHTML(row.title)}</strong><small>${escapeHTML(row.object?.name || "Objeto")} · ${escapeHTML(row.friend)}</small></div><b>${row.date ? fmt(row.date)+" · " : ""}${row.time}</b></div>`).join("") : `<div class="empty">Nenhum lembrete encontrado para esta data.</div>`;
+      $("#reminders-content").innerHTML = `<div class="reminders"><article class="paper-card reminder-box"><h3>Para a data simulada · ${fmt(state.simulatedDate)}</h3>${renderRows(todayRows)}</article><article class="paper-card reminder-box"><h3>Próximos 7 dias</h3>${renderRows(upcoming)}</article></div>`;
+      updateReminderNotice();
+    }
+    function updateReminderNotice() {
+      const off = state.remindersEnabled === false;
+      $("#reminder-off").hidden = !off;
+      const rows = remindersForDate(state.simulatedDate);
+      const notice = $("#reminder-notice");
+      if (!off && rows.length) {
+        notice.hidden = false;
+        notice.innerHTML = `<span aria-hidden="true">🔔</span><div><strong>${rows.length} lembrete(s) para hoje:</strong> ${rows.map(r => `${escapeHTML(r.title)} (${escapeHTML(r.object?.name || "objeto")}, ${r.time})`).join("; ")}.</div>`;
+      } else notice.hidden = true;
+    }
+
+    // HU01: cadastro/edição do objeto. RN02: conjunto continua sendo uma unidade do acervo.
+    function objectForm(item = null) {
+      const isEdit = Boolean(item);
+      showModal(isEdit ? "Editar objeto" : "Cadastrar objeto", `<form id="object-form">
+        <div class="field"><label for="obj-name">Nome *</label><input id="obj-name" name="name" value="${escapeHTML(item?.name || "")}" autocomplete="off"></div>
+        <div class="field-row"><div class="field"><label for="obj-category">Categoria *</label><select id="obj-category" name="category"><option value="">Selecione</option>${CATEGORIES.map(c => `<option ${item?.category === c ? "selected" : ""}>${c}</option>`).join("")}</select></div>
+        <div class="field"><label for="obj-condition">Estado de conservação *</label><select id="obj-condition" name="condition"><option value="">Selecione</option>${CONDITIONS.map(c => `<option ${item?.condition === c ? "selected" : ""}>${c}</option>`).join("")}</select></div></div>
+        <div class="field"><label for="obj-photo">Foto (URL opcional)</label><input id="obj-photo" name="photo" type="url" value="${escapeHTML(item?.photo || "")}" placeholder="https://..."></div>
+        <label class="checkbox-line"><input type="checkbox" name="isSet" ${item?.isSet ? "checked" : ""}> Este cadastro representa um conjunto indivisível</label>
+        ${modalButtons("Cancelar", isEdit ? "Salvar alterações" : "Cadastrar objeto")}</form>`, data => {
+          const name = String(data.get("name") || "").trim();
+          if (!name) return toast("O nome do objeto é obrigatório.", true);
+          if (!data.get("category") || !data.get("condition")) return toast("Selecione a categoria e o estado de conservação do objeto.", true);
+          if (isEdit) Object.assign(item, { name, category:data.get("category"), condition:data.get("condition"), photo:String(data.get("photo") || "").trim(), isSet:data.get("isSet") === "on" });
+          else state.objects.push({ id: state.nextId.object++, name, category:data.get("category"), condition:data.get("condition"), photo:String(data.get("photo") || "").trim(), isSet:data.get("isSet") === "on", status:"Disponível", lastLightDamage:false });
+          save(); closeModal(); renderAll(); toast(isEdit ? "Objeto atualizado." : "Objeto cadastrado como Disponível.");
+        });
+    }
+    // HU05: nome e telefone obrigatórios; e-mail é opcional e validado.
+    function friendForm() {
+      showModal("Cadastrar contato", `<form id="friend-form"><div class="field"><label for="friend-name">Nome *</label><input id="friend-name" name="name" autocomplete="name"></div>
+        <div class="field"><label for="friend-phone">Telefone *</label><input id="friend-phone" name="phone" autocomplete="tel"></div>
+        <div class="field"><label for="friend-email">E-mail (opcional)</label><input id="friend-email" name="email" type="text" inputmode="email" autocomplete="email" placeholder="nome@exemplo.com"></div>${modalButtons("Cancelar","Cadastrar contato")}</form>`, data => {
+          const name = String(data.get("name") || "").trim(), phone = String(data.get("phone") || "").trim(), email = String(data.get("email") || "").trim();
+          if (!name || !phone) return toast("Nome e telefone são obrigatórios.", true);
+          if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return toast("Informe um e-mail válido ou deixe a informação em branco.", true);
+          state.friends.push({ id:state.nextId.friend++, name, phone, email, archived:false });
+          save(); closeModal(); renderAll(); toast("Contato cadastrado.");
+        });
+    }
+    // HU02/RN01/RN05/RN07: empréstimo apenas com objeto disponível, contato ativo e prazo de 1–365 dias.
+    function loanForm() {
+      const eligibleObjects = state.objects.filter(o => o.status === "Disponível" && o.condition !== "Inutilizado");
+      const eligibleFriends = state.friends.filter(f => !f.archived && f.name);
+      if (!eligibleObjects.length) return toast("Não há objetos disponíveis para empréstimo.", true);
+      if (!eligibleFriends.length) return toast("Cadastre ou reative um contato antes de registrar um empréstimo.", true);
+      const options = eligibleObjects.map(o => `<option value="${o.id}">${escapeHTML(o.name)}${o.lastLightDamage ? " · Dano Leve registrado na última devolução" : ""}</option>`).join("");
+      showModal("Registrar empréstimo", `<form id="loan-form">
+        <div class="field"><label for="loan-object">Objeto disponível *</label><select id="loan-object" name="objectId" required>${options}</select></div>
+        <div class="field"><label for="loan-friend">Contato *</label><select id="loan-friend" name="friendId" required>${eligibleFriends.map(f => `<option value="${f.id}">${escapeHTML(f.name)}</option>`).join("")}</select></div>
+        <div class="field-row"><div class="field"><label for="loan-start">Data de saída *</label><input id="loan-start" name="start" type="date" value="${state.simulatedDate}" required></div>
+        <div class="field"><label for="loan-days">Prazo (dias) *</label><input id="loan-days" name="days" type="number" value="${DEFAULT_DAYS[eligibleObjects[0].category]}"><small>Prazo sugerido conforme categoria; pode ser alterado.</small></div></div>
+        <div class="notice" id="loan-damage-note" ${eligibleObjects[0].lastLightDamage ? "" : "hidden"}><span aria-hidden="true">ⓘ</span><div>Dano Leve registrado na última devolução. Isso não impede o empréstimo.</div></div>
+        ${modalButtons("Cancelar","Registrar empréstimo")}</form>`, data => {
+          const object = objectById(data.get("objectId")), friend = friendById(data.get("friendId")), start = String(data.get("start")), days = Number(data.get("days"));
+          if (!object || object.status !== "Disponível" || object.condition === "Inutilizado") return toast(object?.status === "Emprestado" ? "Este objeto já está em um empréstimo ativo." : "Este objeto não está disponível para empréstimo.", true);
+          if (!friend || friend.archived) return toast("Selecione um contato ativo.", true);
+          if (!Number.isInteger(days) || days < 1 || days > 365) return toast("O prazo deve ser de no mínimo 1 e no máximo 365 dias.", true);
+          if (!start) return toast("Informe a data de saída.", true);
+          object.status = "Emprestado";
+          state.loans.push({ id:state.nextId.loan++, objectId:object.id, friendId:friend.id, start, due:addDays(start,days), status:"Ativo", returnDate:"", returnState:"", renewals:[], adjustments:[] });
+          save(); closeModal(); renderAll(); toast("Empréstimo registrado.");
+        });
+      $("#loan-object").addEventListener("change", () => {
+        const selected = objectById($("#loan-object").value);
+        $("#loan-days").value = DEFAULT_DAYS[selected.category];
+        $("#loan-damage-note").hidden = !selected.lastLightDamage;
+      });
+    }
+
+    // HU03/RN10–RN12: renovação com teto de três e limite acumulado de 365 dias.
+    function renewLoan(id) {
+      const loan = loanById(id), status = loan && getStatus(loan);
+      if (!loan || !["Ativo","Atrasado"].includes(status)) return;
+      if (loan.renewals.length >= 3) return toast("Limite máximo de 3 renovações atingido", true);
+      showModal("Renovar empréstimo", `<form id="renew-form"><p>Prazo atual: <b>${fmt(loan.due)}</b> · ${loan.renewals.length}/3 renovações</p>
+        <div class="field"><label for="renew-days">Dias adicionados *</label><input id="renew-days" name="days" type="number" step="1" value="7"></div>
+        ${modalButtons("Cancelar","Confirmar renovação")}</form>`, data => {
+          const days = Number(data.get("days"));
+          if (!Number.isInteger(days) || days < 1) return toast("Informe pelo menos 1 dia.", true);
+          if (loan.renewals.length >= 3) return toast("Limite máximo de 3 renovações atingido", true);
+          const candidate = addDays(state.simulatedDate, days);
+          const nextDue = candidate > loan.due ? candidate : loan.due;
+          if (nextDue === loan.due) return toast("A renovação não amplia o prazo atual. Informe uma quantidade maior de dias.", true);
+          const maximum = addDays(loan.start,365);
+          if (nextDue > maximum) return toast(`O prazo total do empréstimo não pode exceder 365 dias a partir da data de saída (limite: ${fmt(maximum)}).`, true);
+          loan.renewals.push({ id:state.nextId.renewal++, days, due:nextDue, date:state.simulatedDate });
+          loan.due = nextDue; loan.status = "Ativo";
+          save(); closeModal(); renderAll(); toast(`Renovação registrada. Novo prazo: ${fmt(nextDue)}.`);
+        });
+    }
+
+    // HU04/RN13–RN15: devolução total ou parcial com estado obrigatório e validação da data.
+    function returnLoan(id) {
+      const loan = loanById(id), object = loan && objectById(loan.objectId);
+      if (!loan || !object || !["Ativo","Atrasado"].includes(getStatus(loan))) return;
+      const partialAllowed = object.isSet;
+      showModal("Registrar devolução", `<form id="return-form">
+        <div class="field"><label for="return-date">Data real da devolução *</label><input id="return-date" name="date" type="date" value="${state.simulatedDate}" required></div>
+        ${partialAllowed ? `<label class="checkbox-line"><input name="partial" type="checkbox" id="partial-check"> Registrar devolução parcial do conjunto</label><div class="field" id="partial-description" hidden><label for="partial-text">Saldo pendente *</label><textarea id="partial-text" name="description" rows="3" placeholder="Ex.: Livros 6 e 7"></textarea></div>` : ""}
+        <div class="field" id="return-state-field"><label for="return-state">Estado de devolução *</label><select id="return-state" name="state"><option value="">Selecione</option>${RETURN_STATES.map(s => `<option>${s}</option>`).join("")}</select></div>
+        ${modalButtons("Cancelar","Confirmar devolução")}</form>`, data => {
+          const date = String(data.get("date"));
+          if (date < loan.start || date > state.simulatedDate) return toast("A data de devolução não pode ser anterior à data de saída nem posterior à data atual.", true);
+          const isPartial = data.get("partial") === "on";
+          if (isPartial) {
+            const description = String(data.get("description") || "").trim();
+            if (!description) return toast("Informe o saldo pendente da devolução parcial.", true);
+            loan.adjustments.push({ id:state.nextId.adjustment++, type:"Devolução Parcial", description, date });
+            save(); closeModal(); renderAll(); toast("Devolução parcial registrada. O empréstimo continua em andamento.");
+            return;
+          }
+          const returnState = String(data.get("state") || "");
+          if (!returnState) return toast("Selecione o estado de devolução do objeto.", true);
+          loan.returnDate = date; loan.returnState = returnState; loan.status = "Encerrado";
+          object.status = "Disponível";
+          object.lastLightDamage = returnState === "Dano Leve";
+          if (returnState === "Dano Grave") object.condition = "Danificado";
+          if (returnState === "Inutilizado") { object.condition = "Inutilizado"; }
+          save(); closeModal(); renderAll(); toast("Devolução registrada. Empréstimo encerrado.");
+        });
+      const partial = $("#partial-check");
+      if (partial) partial.addEventListener("change", () => {
+        $("#partial-description").hidden = !partial.checked;
+        $("#return-state-field").hidden = partial.checked;
+      });
+    }
+    // HU06/RN16: confirmação explícita, permitido em empréstimos ativos ou atrasados.
+    function declareLost(id) {
+      const loan = loanById(id);
+      if (!loan || !["Ativo","Atrasado"].includes(getStatus(loan))) return;
+      if (!confirm("Esta ação encerra o empréstimo como Perdido. Deseja continuar?")) return;
+      loan.status = "Perdido"; loan.lostDate = state.simulatedDate;
+      const object = objectById(loan.objectId); if (object) object.status = "Perdido";
+      save(); renderAll(); toast("Empréstimo e objeto marcados como Perdido.");
+    }
+    // HU10/RN17: recuperação cria ajuste novo; empréstimo original nunca é reaberto.
+    function recoverObject(id) {
+      const object = objectById(id);
+      if (!object || object.status !== "Perdido") return;
+      const lostLoan = [...state.loans].reverse().find(l => l.objectId === object.id && l.status === "Perdido");
+      showModal("Registrar recuperação", `<form id="recover-form"><p>O empréstimo original permanecerá <b>Perdido</b>.</p>
+        <div class="field"><label for="recover-condition">Estado de conservação atual *</label><select id="recover-condition" name="condition" required><option value="">Selecione</option>${CONDITIONS.map(c => `<option>${c}</option>`).join("")}</select></div>
+        <div class="field"><label for="recover-note">Observação (opcional)</label><textarea id="recover-note" name="note" rows="2"></textarea></div>${modalButtons("Cancelar","Confirmar recuperação")}</form>`, data => {
+          const condition = String(data.get("condition") || "");
+          if (!condition) return toast("Selecione o estado de conservação atual.", true);
+          object.condition = condition; object.status = "Disponível";
+          if (lostLoan) lostLoan.adjustments.push({ id:state.nextId.adjustment++, type:"Recuperação", description:[String(data.get("note") || "").trim(), `Estado atual: ${condition}`].filter(Boolean).join(" · "), condition, date:state.simulatedDate });
+          save(); closeModal(); renderAll(); toast("Recuperação registrada. O empréstimo original continua Perdido.");
+        });
+    }
+
+    // RN03: impede exclusão/arquivamento enquanto houver empréstimo ativo ou atrasado.
+    function archiveObject(id) {
+      const object = objectById(id); if (!object) return;
+      if (object.status === "Arquivado") { object.status = "Disponível"; save(); renderAll(); toast("Objeto desarquivado."); return; }
+      if (state.loans.some(l => l.objectId === object.id && ["Ativo","Atrasado"].includes(getStatus(l)))) return toast("Este objeto possui empréstimos em andamento.", true);
+      const hasHistory = state.loans.some(l => l.objectId === object.id);
+      if (hasHistory) {
+        if (!confirm("Objeto possui histórico e não pode ser excluído. Deseja arquivá-lo?")) return;
+        object.status = "Arquivado"; save(); renderAll(); toast("Objeto arquivado; histórico preservado.");
+      } else if (confirm("Remover este objeto sem histórico?")) {
+        state.objects = state.objects.filter(o => o.id !== object.id); save(); renderAll(); toast("Objeto removido.");
+      }
+    }
+    // HU05/RN03: arquivos com histórico; contatos sem histórico podem ser removidos definitivamente.
+    function archiveFriend(id) {
+      const friend = friendById(id); if (!friend) return;
+      if (friend.archived) { friend.archived = false; save(); renderAll(); toast("Contato reativado."); return; }
+      if (state.loans.some(l => l.friendId === friend.id && ["Ativo","Atrasado"].includes(getStatus(l)))) return toast("Este contato possui empréstimos em andamento.", true);
+      const hasHistory = state.loans.some(l => l.friendId === friend.id);
+      if (hasHistory) {
+        if (!confirm("Contato possui histórico e não pode ser excluído. Deseja arquivá-lo?")) return;
+        friend.archived = true; save(); renderAll(); toast("Contato arquivado; histórico preservado.");
+      } else if (confirm("Remover este contato sem histórico?")) {
+        state.friends = state.friends.filter(f => f.id !== friend.id); save(); renderAll(); toast("Contato removido.");
+      }
+    }
+    // RN04: anonimizar dados pessoais sem apagar vínculos históricos.
+    function anonymizeFriend(id) {
+      const friend = friendById(id); if (!friend || !friend.name) return;
+      if (!confirm("Remover nome, telefone e e-mail deste contato? O histórico será mantido como \"Contato Removido\".")) return;
+      friend.name = ""; friend.phone = ""; friend.email = ""; friend.archived = true;
+      save(); renderAll(); toast("Dados pessoais removidos; histórico preservado como Contato Removido.");
+    }
+
+    function activateTab(tab) {
+      $$(".nav [role=tab]").forEach(button => {
+        const selected = button.dataset.tab === tab;
+        button.setAttribute("aria-selected", String(selected));
+        $(`#panel-${button.dataset.tab}`).hidden = !selected;
+      });
+    }
+    function renderAll() {
+      $("#sim-date").textContent = fmt(state.simulatedDate);
+      renderLoans(); renderObjects(); renderFriends(); historyOptions(); renderReminders();
+    }
+
+    // HU01–HU10: ações e controles da interface.
+    document.addEventListener("click", event => {
+      const target = event.target.closest("button");
+      if (!target) return;
+      if (target.matches("[data-tab]")) activateTab(target.dataset.tab);
+      if (target.id === "new-object") objectForm();
+      if (target.id === "new-friend") friendForm();
+      if (target.id === "new-loan") loanForm();
+      if (target.id === "modal-close" || target.hasAttribute("data-close-modal")) closeModal();
+      if (target.id === "date-today") { state.simulatedDate = todayISO(); save(); renderAll(); }
+      if (target.dataset.dateStep) { state.simulatedDate = addDays(state.simulatedDate, Number(target.dataset.dateStep)); save(); renderAll(); }
+      const id = target.dataset.id;
+      if (target.dataset.action === "renew") renewLoan(id);
+      if (target.dataset.action === "return") returnLoan(id);
+      if (target.dataset.action === "lost") declareLost(id);
+      if (target.dataset.action === "recover") recoverObject(id);
+      if (target.dataset.action === "edit-object") objectForm(objectById(id));
+      if (target.dataset.action === "archive-object") archiveObject(id);
+      if (target.dataset.action === "archive-friend") archiveFriend(id);
+      if (target.dataset.action === "anonymize") anonymizeFriend(id);
+      if (target.dataset.action === "object-history") switchHistory("object", id);
+      if (target.dataset.action === "friend-history") switchHistory("friend", id);
+      if (target.dataset.action === "loan-history") switchHistory("object", loanById(id)?.objectId);
+    });
+    $("#loan-search").addEventListener("input", renderLoans);
+    $("#loan-filter").addEventListener("change", renderLoans);
+    $("#object-search").addEventListener("input", renderObjects);
+    $("#friend-search").addEventListener("input", renderFriends);
+    $("#history-type").addEventListener("change", historyOptions);
+    $("#history-entity").addEventListener("change", renderHistory);
+    $("#reminders-enabled").addEventListener("change", event => {
+      state.remindersEnabled = event.target.checked; save(); renderAll();
+    });
+    $("#modal-backdrop").addEventListener("click", event => { if (event.target.id === "modal-backdrop") closeModal(); });
+    document.addEventListener("keydown", event => { if (event.key === "Escape" && !$("#modal-backdrop").hidden) closeModal(); });
+    renderAll();
+  </script>
+</body>
+</html>
